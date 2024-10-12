@@ -1,8 +1,29 @@
 POST http://localhost:3000/users
 Content-Type: application/json
 {
-  "firstName": "Alper",
-  "lastName": "Ergül",
-  "email": "alper@ergul.com",
+  "firstName": "Alper6",
+  "lastName": "Ergül6",
+  "email": "alper6@ergul.com",
   "password": "Password123!"
+}
+
+
+POST http://localhost:3000/users/create-many
+Content-Type: application/json
+{
+  "users": 
+  [
+    {
+      "firstName": "Alper5",
+      "lastName": "Ergül5",
+      "email": "alper5@ergul.com",
+      "password": "Password123!"
+    },
+    {
+      "firstName": "Alper7",
+      "lastName": "Ergül7",
+      "email": "alper7@ergul.com",
+      "password": "Password123!"
+    }
+  ]
 }

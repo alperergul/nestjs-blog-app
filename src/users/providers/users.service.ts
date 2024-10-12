@@ -1,12 +1,20 @@
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  forwardRef,
+  Inject,
+  Injectable,
+  RequestTimeoutException,
+} from '@nestjs/common';
 import { ConfigService, ConfigType } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from 'src/auth/providers/auth.service';
 import { Repository } from 'typeorm';
 import profileConfig from '../config/profile.config';
+import { CreateManyUsersDto } from '../dtos/create-many-users.dto';
 import { CreateUserDto } from '../dtos/create-user.dto';
 import { GetUserParamDto } from '../dtos/get-user-param.dto';
 import { User } from '../user.entity';
+import { UsersCreateManyProvider } from './users-create-many.provider';
 
 /**
  * Class to connect to Users table and perform business operations
@@ -27,15 +35,44 @@ export class UsersService {
 
     @Inject(profileConfig.KEY)
     private readonly profileConfiguration: ConfigType<typeof profileConfig>,
+
+    private readonly usersCreateManysProvider: UsersCreateManyProvider,
   ) {}
 
   public async createUser(createUserDto: CreateUserDto) {
-    const existingUser = await this.userRepository.findOne({
-      where: { email: createUserDto.email },
-    });
+    let existingUser = undefined;
+
+    try {
+      existingUser = await this.userRepository.findOne({
+        where: { email: createUserDto.email },
+      });
+    } catch (error) {
+      throw new RequestTimeoutException(
+        'Unable to process  your request at the moment please try late',
+        {
+          description: 'Error connection to the database',
+        },
+      );
+    }
+
+    if (existingUser) {
+      throw new BadRequestException(
+        'The user already exists, please check your email',
+      );
+    }
 
     let newUser = this.userRepository.create(createUserDto);
-    newUser = await this.userRepository.save(newUser);
+
+    try {
+      newUser = await this.userRepository.save(newUser);
+    } catch (error) {
+      throw new RequestTimeoutException(
+        'Unable to process  your request at the moment please try late',
+        {
+          description: 'Error connection to the database',
+        },
+      );
+    }
 
     return newUser;
   }
@@ -47,29 +84,32 @@ export class UsersService {
     getUserParamDto: GetUserParamDto,
     limit: number,
     page: number,
-  ) {
-    const isAuth = this.authService.isAuth();
-
-    console.log(this.profileConfiguration);
-
-    return [
-      {
-        id: 1234,
-        firstName: 'John',
-        email: 'john@doe.com',
-      },
-      {
-        id: 1234,
-        firstName: 'Alice',
-        email: 'alice@doe.com',
-      },
-    ];
-  }
+  ) {}
 
   /**
    * Find a single user using the ID of the user
    */
   public async findOneById(id: number) {
-    return await this.userRepository.findOneBy({ id });
+    let user = undefined;
+    try {
+      user = await this.userRepository.findOneBy({ id });
+    } catch (error) {
+      throw new RequestTimeoutException(
+        'Unable to process  your request at the moment please try late',
+        {
+          description: 'Error connection to the database',
+        },
+      );
+    }
+
+    if (!user) {
+      throw new BadRequestException('The user id does not exist');
+    }
+
+    return user;
+  }
+
+  public async createMany(createManyUsersDto: CreateManyUsersDto) {
+    return await this.usersCreateManysProvider.createMany(createManyUsersDto);
   }
 }

@@ -1,4 +1,9 @@
-import { Body, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Injectable,
+  RequestTimeoutException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MetaOption } from 'src/meta-options/meta-option.entity';
 import { TagsService } from 'src/tags/providers/tags.service';
@@ -47,8 +52,34 @@ export class PostsService {
   }
 
   public async update(patchPostDto: PatchPostDto) {
-    const tags = await this.tagsService.findMultipleTags(patchPostDto.tags);
-    const post = await this.postsReporsitory.findOneBy({ id: patchPostDto.id });
+    let tags = undefined;
+    let post = undefined;
+
+    try {
+      tags = await this.tagsService.findMultipleTags(patchPostDto.tags);
+    } catch (error) {
+      throw new RequestTimeoutException(
+        'Unable to process your request at the moment please try later',
+      );
+    }
+
+    if (!tags || tags.length !== patchPostDto.tags.length) {
+      throw new BadRequestException(
+        'Please check ypur tags Ids and ensure they are correct',
+      );
+    }
+
+    try {
+      post = await this.postsReporsitory.findOneBy({ id: patchPostDto.id });
+    } catch (error) {
+      throw new RequestTimeoutException(
+        'Unable to process your request at the moment please try later',
+      );
+    }
+
+    if (!post) {
+      throw new BadRequestException('The post ID does not exist');
+    }
 
     post.title = patchPostDto.title ?? post.title;
     post.content = patchPostDto.content ?? post.content;
@@ -61,7 +92,15 @@ export class PostsService {
 
     post.tags = tags;
 
-    return await this.postsReporsitory.save(post);
+    try {
+      await this.postsReporsitory.save(post);
+    } catch (error) {
+      throw new RequestTimeoutException(
+        'Unable to process your request at the moment please try later',
+      );
+    }
+
+    return post;
   }
 
   public async delete(id: number) {
